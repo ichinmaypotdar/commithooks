@@ -1,0 +1,36 @@
+#!/bin/bash
+
+# Define regex to match the commit message format
+regex="^\[[^]]+\] - \[[^]]+\] - \[[^]]+\] - \[[^]]+\] - .+$"
+
+# Fetch commit message
+commit_message_file=$(git rev-parse --git-dir)/COMMIT_EDITMSG
+commit_message=$(cat "$commit_message_file")
+
+# Fetch current branch name
+branch_name=$(git rev-parse --abbrev-ref HEAD)
+
+# Check if commit message matches the required format
+if ! [[ $commit_message =~ $regex ]]; then
+	echo "ERROR: Commit message does not follow the required format:"
+	echo "[Module/Functional Category] - [Business Unit] - [Use Case ID] - [JIRA Issue No] - [Change Summary]"
+	exit 1
+fi
+
+# Check if branch name contains JIRA issue number (e.g., ADP-0000)
+if ! [[ $branch_name =~ [a-zA-Z]+-[0-9]+ ]]; then
+	echo "ERROR: Branch name does not contain a JIRA issue number (e.g., ADP-0000)"
+	exit 1
+fi
+
+# Further validation for the commit message length (optional, for 50-word limit on Change Summary)
+IFS='-' read -r module business_unit use_case jira_issue change_summary <<<"$commit_message"
+change_summary_word_count=$(echo $change_summary | wc -w)
+
+if [[ $change_summary_word_count -gt 50 ]]; then
+	echo "ERROR: Change Summary exceeds the 50-word limit. Please shorten it."
+	exit 1
+fi
+
+# If all checks pass, proceed with the commit
+exit 0
